@@ -18,6 +18,11 @@ def coco_labels_consecutive(coco):
         coco_labels_inverse[c['id']] = len(classes)
         classes[c['name']] = len(classes)
 
+def coco_dict_empty():
+    coco_labels.clear()
+    coco_labels_inverse.clear()
+    classes.clear()
+
         
 def category_2_category_consecutive(item):
     return [coco_labels_inverse[label] for label in item]
@@ -42,6 +47,7 @@ def format_bb(item):
 def generate_csv(path, annFile, datatype, dest_csv):
     coco=COCO(annFile)
     
+    coco_dict_empty()
     coco_labels_consecutive(coco)
     
     image_ids = coco.getImgIds()
@@ -126,8 +132,6 @@ def load_data(path=None):
             zip_file.extractall(path)
             
     # Generating train and val csv files
-    dataDir='/home/ubuntu/coco'
-    dataType='train2014'
     train_annFile = os.path.join(annotations_dir,'instances_train2014.json')
     val_annFile = os.path.join(annotations_dir,'instances_val2014.json')
     
