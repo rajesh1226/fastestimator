@@ -20,7 +20,10 @@ import time
 import pdb
 
 import numpy as np
+<<<<<<< HEAD
 import pandas as pd
+=======
+>>>>>>> adding mean average precision cocoapi based
 import tensorflow as tf
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -432,7 +435,7 @@ class MeanAveragePrecision(Trace):
         annFile='{}/annotations/instances_{}.json'.format(coco_path,self.set_name)
         self.coco=COCO(annFile)
 
-        self.val_csv = os.path.join(coco_path, val_csv) 
+        self.val_csv = os.path.join(coco_path, val_csv)
         df = pd.read_csv(self.val_csv)
         self.val_imgIds = df['image_id'].values
         self.val_imgIds = [ int(elem) for elem in self.val_imgIds]
