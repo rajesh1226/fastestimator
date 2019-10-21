@@ -1,12 +1,18 @@
+import datetime
 import os
 import re
+import sys
 from distutils.core import setup
 from distutils.extension import Extension
 
 import numpy
+from Cython.Build import cythonize
 from setuptools import find_packages, setup
 
-from Cython.Build import cythonize
+is_nightly = os.environ.get('FASTESTIMATOR_IS_NIGHTLY', None)
+
+if is_nightly is not None:
+    sys.stderr.write("Using '%s=%s' environment variable!\n" % ('FASTESTIMATOR_IS_NIGHTLY', is_nightly))
 
 extensions = [
     Extension('fastestimator.util.compute_overlap', ['fastestimator/util/compute_overlap.pyx'],
@@ -19,13 +25,20 @@ def get_version():
     version_re = re.compile(r'''__version__ = ['"](.+)['"]''')
     with open(os.path.join(path, 'fastestimator', '__init__.py')) as f:
         init = f.read()
-    
+
     now = datetime.datetime.now()
     version = version_re.search(init).group(1)
     if is_nightly:
         return "{}-{}{}{}{}{}".format(version, now.year, now.month, now.day, now.hour, now.minute)
     else:
         return version
+
+
+def get_name():
+    if is_nightly:
+        return "fastestimator-nightly"
+    else:
+        return "fastestimator"
 
 
 setup(
