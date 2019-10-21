@@ -20,6 +20,7 @@ import time
 import pdb
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
