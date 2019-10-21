@@ -1,8 +1,12 @@
 import os
 import re
+from distutils.core import setup
+from distutils.extension import Extension
 
+import numpy
 from setuptools import find_packages, setup
 
+<<<<<<< HEAD
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
@@ -15,6 +19,13 @@ extensions = [
         ['fastestimator/util/compute_overlap.pyx'],
         include_dirs=[numpy.get_include()]
     ),
+=======
+from Cython.Build import cythonize
+
+extensions = [
+    Extension('fastestimator.util.compute_overlap', ['fastestimator/util/compute_overlap.pyx'],
+              include_dirs=[numpy.get_include()]),
+>>>>>>> cython changes in setup.py
 ]
 
 
@@ -41,7 +52,7 @@ setup(
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3", ],
-    ext_modules    = cythonize(extensions),
+    ext_modules=cythonize(extensions),
 
     # Declare minimal set for installation
     install_requires=[
@@ -64,9 +75,9 @@ setup(
         'tf-explain',
         'slackclient',
         'nest_asyncio',
-	'pycocotools'	
+        'pycocotools'
     ],
-    setup_requires = ["cython", "numpy"],
+    setup_requires=["cython", "numpy"],
     # Declare extra set for installation
     extras_require={},
     scripts=['bin/fastestimator'])
