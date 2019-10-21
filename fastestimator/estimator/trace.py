@@ -20,10 +20,7 @@ import time
 import pdb
 
 import numpy as np
-<<<<<<< HEAD
 import pandas as pd
-=======
->>>>>>> adding mean average precision cocoapi based
 import tensorflow as tf
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
