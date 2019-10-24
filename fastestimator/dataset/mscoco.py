@@ -50,23 +50,21 @@ def _generate_object_data(path, image_name, image_id, data_temp, coco_gt_instanc
         keep_data = False
     else:
         keep_data = True
-        mask_file = os.path.join(mask_folder, image_name.replace("jpg", "png"))
-        write_mask = not os.path.exists(mask_file)
         data_temp["x1"], data_temp["y1"], data_temp["x2"], data_temp["y2"], data_temp["obj_label"] = [], [], [], [], []
         data_temp["num_obj"] = num_obj
         anns = coco_gt_instance.loadAnns(anns_ids)
         for idx, ann in enumerate(anns):
-            if write_mask:
-                if idx == 0:
-                    mask = coco_gt_instance.annToMask(ann=ann)
-                else:
-                    mask = np.clip(mask + (idx + 1) * coco_gt_instance.annToMask(ann=ann), None, idx + 1)
+            if idx == 0:
+                mask = coco_gt_instance.annToMask(ann=ann)
+            else:
+                mask = np.clip(mask + (idx + 1) * coco_gt_instance.annToMask(ann=ann), None, idx + 1)
             data_temp["x1"].append(ann['bbox'][0])
             data_temp["y1"].append(ann['bbox'][1])
             data_temp["x2"].append(ann['bbox'][0] + ann['bbox'][2])
             data_temp["y2"].append(ann['bbox'][1] + ann['bbox'][3])
             data_temp["obj_label"].append(ann['category_id'])
-        if write_mask:
+        mask_file = os.path.join(mask_folder, image_name)
+        if not os.path.exists(mask_file):
             cv2.imwrite(mask_file, mask)
         data_temp["obj_mask"] = os.path.relpath(mask_file, path)
     return keep_data
@@ -164,8 +162,8 @@ def _get_csv_name(base_name, load_object, load_caption, path):
 
 
 def load_data(path=None, load_object=True, load_caption=False):
-    """Download the COCO dataset to local storage, if not already downloaded. This will generate train and val 
-    csv files.
+    """Download the COCO dataset to local storage, if not already downloaded. This will generate a
+    coco_train.csv file, which contains all the path information.
 
     Args:
         path (str, optional): The path to store the COCO data. When `path` is not provided, will save at
