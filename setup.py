@@ -75,7 +75,7 @@ setup(
         'tf-explain',
         'slackclient',
         'nest_asyncio',
-        'pycocotools'
+        'pycocotools-fix'
     ],
     setup_requires=["cython", "numpy"],
     # Declare extra set for installation
