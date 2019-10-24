@@ -6,26 +6,11 @@ from distutils.extension import Extension
 import numpy
 from setuptools import find_packages, setup
 
-<<<<<<< HEAD
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Build import cythonize
-import numpy
-
-
-extensions = [
-    Extension(
-        'fastestimator.util.compute_overlap',
-        ['fastestimator/util/compute_overlap.pyx'],
-        include_dirs=[numpy.get_include()]
-    ),
-=======
 from Cython.Build import cythonize
 
 extensions = [
     Extension('fastestimator.util.compute_overlap', ['fastestimator/util/compute_overlap.pyx'],
               include_dirs=[numpy.get_include()]),
->>>>>>> cython changes in setup.py
 ]
 
 
@@ -34,7 +19,13 @@ def get_version():
     version_re = re.compile(r'''__version__ = ['"](.+)['"]''')
     with open(os.path.join(path, 'fastestimator', '__init__.py')) as f:
         init = f.read()
-    return version_re.search(init).group(1)
+    
+    now = datetime.datetime.now()
+    version = version_re.search(init).group(1)
+    if is_nightly:
+        return "{}-{}{}{}{}{}".format(version, now.year, now.month, now.day, now.hour, now.minute)
+    else:
+        return version
 
 
 setup(
