@@ -432,11 +432,7 @@ class MeanAveragePrecision(Trace):
         annFile='{}/annotations/instances_{}.json'.format(coco_path,self.set_name)
         self.coco=COCO(annFile)
 
-<<<<<<< HEAD
-        self.val_csv = os.path.join(coco_path, val_csv)
-=======
         self.val_csv = os.path.join(coco_path, val_csv) 
->>>>>>> adding mean average precision cocoapi based
         df = pd.read_csv(self.val_csv)
         self.val_imgIds = df['image_id'].values
         self.val_imgIds = [ int(elem) for elem in self.val_imgIds]
