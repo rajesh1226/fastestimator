@@ -14,7 +14,6 @@
 # ==============================================================================
 """Trace contains metrics and other information users want to track."""
 import time
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras import backend
@@ -140,6 +139,8 @@ class MonitorLoss(Trace):
         if state["mode"] == "train":
             for key in self.epoch_losses:
                 state[key] = self._reduce_loss(state["batch"][key], state["batch_size"])
+            for key in ('focal','smooth'):
+                state[key] = self._reduce_loss(state["batch"][key], state["batch_size"])
         elif state["mode"] == "eval":
             if self.eval_results is None:
                 self.eval_results = dict(
@@ -163,7 +164,7 @@ class MonitorLoss(Trace):
                 state["since_best_loss"] = self.epochs_since_best
 
     @staticmethod
-    @tf.function
+    #@tf.function
     def _reduce_loss(element_wise_loss, global_batch_size):
         return tf.reduce_sum(element_wise_loss) / global_batch_size
 
