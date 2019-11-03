@@ -45,7 +45,7 @@ class ResizeImageAndBbox(Resize):
                          mode=mode)
 
     def forward(self, data, state):
-        img, x1, y1, width, height = data
+        img, x1, y1, x2, y2 = data
         original_dim = img.ndim
 
         # Calculate and apply paddings
@@ -56,21 +56,24 @@ class ResizeImageAndBbox(Resize):
                 pad = (img.shape[1] / target_ratio - img.shape[0]) / 2
                 pad_boarder = (np.ceil(pad).astype(np.int), np.floor(pad).astype(np.int), 0, 0)
                 y1 += np.ceil(pad).astype(np.int)
+                y2 += np.ceil(pad).astype(np.int)
             else:
                 pad = (img.shape[0] * target_ratio - img.shape[1]) / 2
                 pad_boarder = (0, 0, np.ceil(pad).astype(np.int), np.floor(pad).astype(np.int))
                 x1 += np.ceil(pad).astype(np.int)
+                x2 += np.ceil(pad).astype(np.int)
             img = cv2.copyMakeBorder(img, *pad_boarder, cv2.BORDER_CONSTANT)
+            padimg_targimg_ratio = np.array([ img.shape[1]/self.target_size[1],
+                                            img.shape[0]/self.target_size[0],
+                                            img.shape[1]/self.target_size[1],
+                                            img.shape[0]/self.target_size[0]], dtype=np.float)
 
+        padding = np.array([pad_boarder[2], pad_boarder[0] ,pad_boarder[2], pad_boarder[0]])
         # Resize padded image and associated bounding boxes
         img_resized = cv2.resize(img, (self.target_size[1], self.target_size[0]), self.resize_method)
         x1 = (np.array(x1) * self.target_size[1] / img.shape[1]).astype(np.int)
+        x2 = (np.array(x2) * self.target_size[1] / img.shape[1]).astype(np.int)
         y1 = (np.array(y1) * self.target_size[0] / img.shape[0]).astype(np.int)
-        width = (np.array(width) * self.target_size[1] / img.shape[1]).astype(np.int)
-        height = (np.array(height) * self.target_size[0] / img.shape[0]).astype(np.int)
-        width = np.clip(width, 1, None)
-        height = np.clip(height, 1, None)
+        y2 = (np.array(y2) * self.target_size[0] / img.shape[0]).astype(np.int)
         # Restore image dimension
-        if img_resized.ndim == original_dim - 1:
-            img_resized = np.expand_dims(img_resized, -1)
-        return img_resized, x1, y1, width, height
+        return img_resized, x1, y1, x2, y2, padding, padimg_targimg_ratio

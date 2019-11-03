@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Download MS COCO 2017 dataset."""
+"""Download MS COCO 2014 dataset."""
 import multiprocessing as mp
 import os
 import zipfile
@@ -45,6 +45,18 @@ def _extract_data(zip_path, data_path, idx, total_idx):
 
 def _generate_object_data(path, image_name, image_id, data_temp, coco_gt_instance, mask_folder):
     anns_ids = coco_gt_instance.getAnnIds(imgIds=image_id)
+
+    classes = {}
+    coco_labels = {}
+    coco_labels_inverse = {}
+
+    categories = coco_gt_instance.loadCats(coco_gt_instance.getCatIds())
+    categories.sort(key=lambda x: x['id'])
+    for c in categories:
+        coco_labels[len(classes)] = c['id']
+        coco_labels_inverse[c['id']] = len(classes)
+        classes[c['name']] = len(classes)
+
     num_obj = len(anns_ids)
     if num_obj == 0:
         keep_data = False
@@ -52,7 +64,8 @@ def _generate_object_data(path, image_name, image_id, data_temp, coco_gt_instanc
         keep_data = True
         mask_file = os.path.join(mask_folder, image_name.replace("jpg", "png"))
         write_mask = not os.path.exists(mask_file)
-        data_temp["x1"], data_temp["y1"], data_temp["width"], data_temp["height"], data_temp["obj_label"] = [], [], [], [], []
+        data_temp["image_id"], data_temp["x1"], data_temp["y1"], data_temp["x2"], data_temp["y2"], data_temp["obj_label"] = [], [], [], [], [], []
+        data_temp["image_id"] = image_id
         data_temp["num_obj"] = num_obj
         anns = coco_gt_instance.loadAnns(anns_ids)
         for idx, ann in enumerate(anns):
@@ -63,9 +76,10 @@ def _generate_object_data(path, image_name, image_id, data_temp, coco_gt_instanc
                     mask = np.clip(mask + (idx + 1) * coco_gt_instance.annToMask(ann=ann), None, idx + 1)
             data_temp["x1"].append(ann['bbox'][0])
             data_temp["y1"].append(ann['bbox'][1])
-            data_temp["width"].append(ann['bbox'][2])
-            data_temp["height"].append(ann['bbox'][3])
-            data_temp["obj_label"].append(ann['category_id'])
+            data_temp["x2"].append(ann['bbox'][0] + ann['bbox'][2])
+            data_temp["y2"].append(ann['bbox'][1] + ann['bbox'][3])
+            category_cont = coco_labels_inverse[ann['category_id']]
+            data_temp["obj_label"].append(category_cont)
         if write_mask:
             cv2.imwrite(mask_file, mask)
         data_temp["obj_mask"] = os.path.relpath(mask_file, path)
@@ -93,7 +107,8 @@ def _generate_data(path, image_folder, mask_folder, image_names_process, groundt
     for idx, image_name in enumerate(image_names_process):
         if idx % logging_interval == 0 and show_progress:
             print("Generating data from {}, progress: {:.1%}".format(image_folder, idx / len(image_names_process)))
-        image_id = int(os.path.splitext(image_name)[0])
+        image_id = os.path.splitext(image_name)[0]
+        image_id = int(image_id.split('_')[2])
         keep_data = True
         data_temp = {"image": os.path.relpath(os.path.join(image_folder, image_name), path)}
         if "object" in groundtruth:
@@ -120,6 +135,7 @@ def _generate_csv(path, load_object, load_caption, csv_file, image_folder, mask_
             os.makedirs(mask_folder, exist_ok=True)
             groundtruth["object"] = COCO(instance_gt)
             data["num_obj"], queue["num_obj"] = [], mp.Queue()
+            data["image_id"], queue["image_id"] = [], mp.Queue()
             data["x1"], queue["x1"] = [], mp.Queue()
             data["y1"], queue["y1"] = [], mp.Queue()
             data["width"], queue["width"] = [], mp.Queue()
@@ -189,20 +205,20 @@ def load_data(path=None, load_object=True, load_caption=False):
         path (str): Path to data directory.
     """
     if path is None:
-        path = os.path.join(str(Path.home()), 'fastestimator_data', 'MSCOCO2017')
+        path = os.path.join(str(Path.home()), 'fastestimator_data', 'MSCOCO2014')
     else:
-        path = os.path.join(os.path.abspath(path), 'MSCOCO2017')
+        path = os.path.join(os.path.abspath(path), 'MSCOCO2014')
     os.makedirs(path, exist_ok=True)
     #download the zip data
-    zip_files = [("train2017.zip", 'http://images.cocodataset.org/zips/train2017.zip'),
-                 ("val2017.zip", 'http://images.cocodataset.org/zips/val2017.zip'),
-                 ("annotations_trainval2017.zip",
-                  'http://images.cocodataset.org/annotations/annotations_trainval2017.zip')]
+    zip_files = [("train2014.zip", 'http://images.cocodataset.org/zips/train2014.zip'),
+                 ("val2014.zip", 'http://images.cocodataset.org/zips/val2014.zip'),
+                 ("annotations_trainval2014.zip",
+                  'http://images.cocodataset.org/annotations/annotations_trainval2014.zip')]
     for idx, (zip_file, zip_link) in enumerate(zip_files):
         _download_data(zip_link, os.path.join(path, zip_file), idx, len(zip_files))
     #extract data
-    extract_folders = [("train2017", "train2017.zip"), ("val2017", "val2017.zip"),
-                       ("annotations", "annotations_trainval2017.zip")]
+    extract_folders = [("train2014", "train2014.zip"), ("val2014", "val2014.zip"),
+                       ("annotations", "annotations_trainval2014.zip")]
     for idx, (folder, zip_file) in enumerate(extract_folders):
         _extract_data(os.path.join(path, zip_file), os.path.join(path, folder), idx, len(extract_folders))
     #generate csv
@@ -212,16 +228,16 @@ def load_data(path=None, load_object=True, load_caption=False):
                   load_object,
                   load_caption,
                   train_csv,
-                  os.path.join(path, "train2017"),
-                  os.path.join(path, "mask_train2017"),
-                  os.path.join(path, "annotations", "instances_train2017.json"),
-                  os.path.join(path, "annotations", "captions_train2017.json"))
+                  os.path.join(path, "train2014"),
+                  os.path.join(path, "mask_train2014"),
+                  os.path.join(path, "annotations", "instances_train2014.json"),
+                  os.path.join(path, "annotations", "captions_train2014.json"))
     _generate_csv(path,
                   load_object,
                   load_caption,
                   val_csv,
-                  os.path.join(path, "val2017"),
-                  os.path.join(path, "mask_val2017"),
-                  os.path.join(path, "annotations", "instances_val2017.json"),
-                  os.path.join(path, "annotations", "captions_val2017.json"))
+                  os.path.join(path, "val2014"),
+                  os.path.join(path, "mask_val2014"),
+                  os.path.join(path, "annotations", "instances_val2014.json"),
+                  os.path.join(path, "annotations", "captions_val2014.json"))
     return train_csv, val_csv, path
