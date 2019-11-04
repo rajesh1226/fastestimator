@@ -43,7 +43,7 @@ class MeanAveragePrecision(Trace):
         self.results = []
         assert annFile != None
         assert val_csv  != None
-        self.set_name = 'val'+str(2014)   # hardcode for 2014
+        self.set_name = 'val'
         self.coco=COCO(annFile)
 
         self.val_csv = os.path.join(coco_path, val_csv) 
