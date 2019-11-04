@@ -31,7 +31,7 @@ class MeanAveragePrecision(Trace):
         pred_key (str): Name of the key that corresponds to predicted score in batch dictionary
     """
     def __init__(self, selected_indices_key, valid_output_key, image_id_key, pred_cls_key, abs_loc_key, padimg_targimg_ratio_key, padding_key,
-                    mode="eval", output_name="meanavgprecision", coco_path=None, val_csv=None):
+                    mode="eval", output_name="meanavgprecision", annFile=None, val_csv=None):
         super().__init__(outputs=output_name, mode=mode)
         self.selected_indices_key = selected_indices_key
         self.valid_output_key = valid_output_key
@@ -41,10 +41,9 @@ class MeanAveragePrecision(Trace):
         self.padimg_targimg_ratio_key = padimg_targimg_ratio_key
         self.padding_key = padding_key
         self.results = []
-        assert coco_path != None
+        assert annFile != None
         assert val_csv  != None
         self.set_name = 'val'+str(2014)   # hardcode for 2014
-        annFile='{}/annotations/instances_{}.json'.format(coco_path,self.set_name)
         self.coco=COCO(annFile)
 
         self.val_csv = os.path.join(coco_path, val_csv) 
@@ -58,12 +57,11 @@ class MeanAveragePrecision(Trace):
         self.categories.sort(key=lambda x: x['id'])
 
         self.classes = {}
-        #self.coco_labels = {0:1, 1:2, 2:3, 3:5, 4:6, 5:7, 6:8, 7:14, 8:15, 9:16, 10:17, 11:18}
-        self.coco_labels = {0:2, 1:3, 2:4 ,3:6 ,4:7, 5:8, 6:9, 7:16, 8:17, 9:18, 10:19, 11:20 }
-        #for c in self.categories:
-        #    self.coco_labels[len(self.classes)] = c['id']
-        #    self.classes[c['name']] = len(self.classes)
-        self.coco_labels[12]=91  # index 80 would be for background. ideally we shouldn't be needed key 80 if things are right in nms
+        self.coco_labels = {}
+        for c in self.categories:
+            self.coco_labels[len(self.classes)] = c['id']
+            self.classes[c['name']] = len(self.classes)
+        self.coco_labels[80]=91  # index 80 would be for background. ideally we shouldn't be needed key 80 if things are right in nms
 
     def on_epoch_begin(self, state):
         self.results = []
