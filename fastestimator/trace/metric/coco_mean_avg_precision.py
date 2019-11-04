@@ -46,16 +46,12 @@ class MeanAveragePrecision(Trace):
         self.set_name = 'val'
         self.coco=COCO(annFile)
 
-        self.val_csv = os.path.join(coco_path, val_csv) 
-        df = pd.read_csv(self.val_csv)
+        df = pd.read_csv(val_csv)
         self.val_imgIds = []
-        #self.val_imgIds = []df['image_id'].values
-        #self.val_imgIds = [ int(elem) for elem in self.val_imgIds]
 
 
         self.categories = self.coco.loadCats(self.coco.getCatIds())
         self.categories.sort(key=lambda x: x['id'])
-
         self.classes = {}
         self.coco_labels = {}
         for c in self.categories:
