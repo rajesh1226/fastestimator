@@ -28,11 +28,7 @@ import numpy as np
 # noinspection PyPackageRequirements
 import tensorflow as tf
 from tensorflow.python.client import device_lib
-<<<<<<< HEAD
-from tensorflow.python.distribute.values import PerReplica
-=======
 from tensorflow.python.distribute.values import DistributedValues
->>>>>>> fix multi-gpu to properly reduce batch data
 
 
 def load_image(file_path, strip_alpha=False, channels=3):

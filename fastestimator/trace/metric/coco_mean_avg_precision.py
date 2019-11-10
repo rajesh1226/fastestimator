@@ -21,6 +21,7 @@ import pandas as pd
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from fastestimator.trace import Trace
+import pycocotools.mask as maskUtils
 
 
 class MeanAveragePrecision(Trace):
@@ -52,12 +53,12 @@ class MeanAveragePrecision(Trace):
 
         self.categories = self.coco.loadCats(self.coco.getCatIds())
         self.categories.sort(key=lambda x: x['id'])
-        self.classes = {}
-        self.coco_labels = {}
-        for c in self.categories:
-            self.coco_labels[len(self.classes)] = c['id']
-            self.classes[c['name']] = len(self.classes)
-        self.coco_labels[80]=91  # index 80 would be for background. ideally we shouldn't be needed key 80 if things are right in nms
+        #self.classes = {}
+        self.coco_labels = {0:2, 1:3, 2:4 ,3:6 ,4:7, 5:8, 6:9, 7:16, 8:17, 9:18, 10:19, 11:20 }
+        #for c in self.categories:
+        #    self.coco_labels[len(self.classes)] = c['id']
+        #    self.classes[c['name']] = len(self.classes)
+        self.coco_labels[12]=21  # index 80 would be for background. ideally we shouldn't be needed key 80 if things are right in nms
 
     def on_epoch_begin(self, state):
         self.results = []
@@ -93,8 +94,8 @@ class MeanAveragePrecision(Trace):
 
             # compute predicted labels and scores
 
+            self.val_imgIds.append(int(elem_image_id))
             if valid_indices.size != 0:
-                self.val_imgIds.append(int(elem_image_id))
                 for box, score, label in zip(abs_loc, scores, labels):
 
                     box = box * elem_padimg_targimg_ratio - elem_padding  # equivalent to inversing all the preprocessing operation 

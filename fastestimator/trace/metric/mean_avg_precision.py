@@ -113,7 +113,6 @@ class Mean_avg_precision(Trace):
         num_category = len(self.categories)
         self.ious = {(img_id,cat_id): self.compute_iou(self.dt[img_id, cat_id], self.gt[img_id,cat_id]) for img_id in
                 self.batch_image_ids for cat_id in self.categories }
-        # print('num_dt:',len(self.dt[img_id, cat_id]), 'num_gt:', len(self.gt[img_id,cat_id])
         for cat_id in self.categories:
             for img_id in self.batch_image_ids:
                 self.evalImgs[(cat_id,img_id)] = self.evaluate_img(cat_id, img_id)
@@ -216,6 +215,8 @@ class Mean_avg_precision(Trace):
             mean_s = -1
         else:
             mean_s = np.mean(s[s>-1])
+            print("Mean average preci","{:.3f}".format(mean_s))
+
         print("Mean average preci","{:.3f}".format(mean_s))
 
 
@@ -226,7 +227,7 @@ class Mean_avg_precision(Trace):
         gt = self.gt[ img_id, cat_id]
         num_dt = len(dt)
         num_gt = len(gt)
-        if num_gt==0 or num_dt==0:
+        if num_gt==0 and num_dt==0:
             return None
 
         dtind = np.argsort([-d['score'] for d in dt], kind='mergesort')
@@ -256,11 +257,11 @@ class Mean_avg_precision(Trace):
                             m = gt_idx
 
                     if m != -1:
-                        pdb.set_trace()
+                        # pdb.set_trace()
                         dtm[thres_idx, dt_idx] = gt[m]['idx']
                         gtm[thres_idx, gt_idx] = 1
-        dtIg = (dtm == 0)
-
+        
+        # dtIg = (dtm == 0)  
         return {
                 'image_id':     img_id,
                 'category_id':  cat_id,
@@ -277,7 +278,7 @@ class Mean_avg_precision(Trace):
         num_dt = len(dt)
         num_gt = len(gt)
 
-        if num_gt==0 or num_dt==0:   #  or?  and?
+        if num_gt==0 and num_dt==0:   #  or?  and?
             return []
 
         boxes_a = np.zeros(shape=(0,4), dtype=float)
@@ -293,7 +294,7 @@ class Mean_avg_precision(Trace):
             boxes_a = np.append(boxes_a, np.array([[x1,y1,x2,y2]]), axis=0)
 
         for gt_elem in gt:
-            x1,y1,x2,y2 =gt_elem['x1'], gt_elem['y1'], gt_elem['x1'], gt_elem['y2']
+            x1,y1,x2,y2 =gt_elem['x1'], gt_elem['y1'], gt_elem['x2'], gt_elem['y2']
             boxes_b = np.append(boxes_b, np.array([[x1,y1,x2,y2]]), axis=0)
 
         iou_dt_gt  = get_iou(boxes_a, boxes_b)
@@ -323,7 +324,6 @@ def get_iou(boxes1, boxes2):
     area1 = (w1 + 1) * (h1 + 1)
     area2 = (w2 + 1) * (h2 + 1)
     iou = inter_area / (area1 + area2.T - inter_area)
-    print('any iou greater than .5 ',np.sum(iou>0.5))
     return iou
 
 def get_fpn_anchor_box(input_shape):
