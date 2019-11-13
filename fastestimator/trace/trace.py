@@ -140,6 +140,8 @@ class MonitorLoss(Trace):
         if state["mode"] == "train":
             for key in self.epoch_losses:
                 state[key] = self._reduce_loss(state["batch"][key], state["batch_size"])
+            for key in ('focal','smooth'):
+                state[key] = self._reduce_loss(state["batch"][key], state["batch_size"])
         elif state["mode"] == "eval":
             if self.eval_results is None:
                 self.eval_results = dict(
