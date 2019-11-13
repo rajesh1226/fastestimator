@@ -7,8 +7,6 @@ from fastestimator.architecture.retinanet import get_fpn_anchor_box
 from pycocotools import mask as maskUtils
 import pdb
 
-#'selected_indices_padded','valid_outputs', 'abs_loc','image_id','pred_cls',"cls_gt", "x1_gt", "y1_gt", "w_gt", "h_gt"
-
 class Mean_avg_precision(Trace):
     def __init__(self, categories, maxDets, selected_indices_key, valid_output_key, image_id_key, pred_cls_key, abs_loc_key, 
     cls_gt_key, x1_gt_key, y1_gt_key, w_gt_key, h_gt_key,
@@ -122,8 +120,6 @@ class Mean_avg_precision(Trace):
                 cls_gt = cls_gt_bb_elem[bb_idx]
                 temp_dict = {'idx': image_id_elem, 'x1':x1_gt,'y1':y1_gt,'w':w_gt,'h':h_gt,'cls':cls_gt }
                 ground_truth_bb.append(temp_dict)
-            #if (image_id_elem == 483375):
-            #    pdb.set_trace()
 
 
         for dict_elem in ground_truth_bb:
@@ -159,11 +155,6 @@ class Mean_avg_precision(Trace):
         I = len(self.image_ids)
         maxDet = self.maxDets
 
-        print('length of eval_list',len(eval_list))
-        print('length of image_ids', len(self.image_ids))
-        print('length of category',len(self.categories))
-
-
         precision = -np.ones((T,R,K))
         recall = -np.ones((T,K))
         scores = -np.ones((T,R,K))
@@ -182,21 +173,16 @@ class Mean_avg_precision(Trace):
 
 
             dtm  = np.concatenate([e['dtMatches'][:,0:maxDet] for e in E], axis=1)[:,inds]
-            dtIg = np.concatenate([e['dtIgnore'][:,0:maxDet]  for e in E], axis=1)[:,inds]
 
-            gtIg = np.concatenate([e['gtIgnore'] for e in E])
-            npig = np.count_nonzero(gtIg==0 )
+            npig = np.sum([ e['num_gt'] for e in E])
             if npig == 0:
                 continue
 
-            tps = np.logical_and(               dtm,  np.logical_not(dtIg) )
-            fps = np.logical_and(np.logical_not(dtm), np.logical_not(dtIg) )
-
+            tps = dtm > 0
+            fps = dtm == 0
 
             tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
             fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
-
-
 
             for t, (tp, fp) in enumerate(zip(tp_sum, fp_sum)):
                 tp = np.array(tp)
@@ -242,13 +228,10 @@ class Mean_avg_precision(Trace):
             mean_s = -1
         else:
             mean_s = np.mean(s[s>-1])
-            print("Mean average preci","{:.3f}".format(mean_s))
-
-        print("Mean average preci","{:.3f}".format(mean_s))
+        print("Mean average precision:","{:.3f}".format(mean_s))
 
 
     def evaluate_img(self, cat_id, img_id):
-        T = self.iouThrs 
         dt = self.dt[ img_id, cat_id]
         gt = self.gt[ img_id, cat_id]
         num_dt = len(dt)
@@ -260,15 +243,10 @@ class Mean_avg_precision(Trace):
         dt = [dt[i] for i in dtind[0:100]]
 
         iou_mat = self.ious[img_id, cat_id]
-
-        # print("num_dt:",num_dt,"num_gt:",num_gt,"iou_mat:", iou_mat.shape)
-
         T = len(self.iouThrs)
 
         dtm = np.zeros((T, num_dt))
         gtm = np.zeros((T, num_gt))
-        gtIg =[ 0 for g in gt]
-        dtIg = np.zeros((T,num_dt))
 
         if len(iou_mat)!=0:
             for thres_idx, thres_elem in enumerate(self.iouThrs):
@@ -285,12 +263,7 @@ class Mean_avg_precision(Trace):
                     if m != -1:
                         dtm[thres_idx, dt_idx] = gt[m]['idx']
                         gtm[thres_idx, m] = 1
-                        dtIg[thres_idx, dt_idx] = gtIg[m]
         
-        # dtIg = (dtm == 0)  
-        if img_id ==483375  and cat_id==6 :
-            print(dtm)
-
         return {
                 'image_id':     img_id,
                 'category_id':  cat_id,
@@ -298,8 +271,7 @@ class Mean_avg_precision(Trace):
                 'dtMatches':    dtm,
                 'gtMatches':    gtm,
                 'dtScores':     [d['score'] for d in dt],
-                'gtIgnore':     gtIg,
-                'dtIgnore':     dtIg,
+                'num_gt'  :     num_gt,       
             }
 
 
@@ -307,7 +279,7 @@ class Mean_avg_precision(Trace):
         num_dt = len(dt)
         num_gt = len(gt)
 
-        if num_gt==0 and num_dt==0:   #  or?  and?
+        if num_gt==0 and num_dt==0: 
             return []
 
         boxes_a = np.zeros(shape=(0,4), dtype=float)
@@ -318,19 +290,9 @@ class Mean_avg_precision(Trace):
         if len(dt) > 100:
             dt=dt[0:100]
 
-        #for dt_elem in dt:
-        #    x1,y1,w,h= dt_elem['x1'], dt_elem['y1'], dt_elem['w'], dt_elem['h']
-        #    boxes_a = np.append(boxes_a, np.array([[x1,y1,w,h]]), axis=0)
-
-        #for gt_elem in gt:
-        #    x1,y1,w,h =gt_elem['x1'], gt_elem['y1'], gt_elem['w'], gt_elem['h']
-        #    boxes_b = np.append(boxes_b, np.array([[x1,y1,w,h]]), axis=0)
-
-        #iou_dt_gt  = get_iou(boxes_a, boxes_b)
-
         boxes_a = [ [  dt_elem['x1'], dt_elem['y1'], dt_elem['w'], dt_elem['h']  ] for dt_elem in dt]
         boxes_b = [ [  gt_elem['x1'], gt_elem['y1'], gt_elem['w'], gt_elem['h']  ] for gt_elem in gt]
 
-        iscrowd = [0 for o in gt]
+        iscrowd = [0 for o in gt]  # to leverage maskUtils.iou
         iou_dt_gt  = maskUtils.iou(boxes_a, boxes_b, iscrowd)
         return iou_dt_gt
