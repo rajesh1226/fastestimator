@@ -51,15 +51,15 @@ class MeanAveragePrecision(Trace):
         self.val_imgIds = []
 
 
-        self.categories = self.coco.loadCats(self.coco.getCatIds())
-        self.categories.sort(key=lambda x: x['id'])
+        #self.categories = self.coco.loadCats(self.coco.getCatIds())
+        #self.categories.sort(key=lambda x: x['id'])
         #self.classes = {}
         #self.coco_labels = {0:2, 1:3, 2:4 ,3:6 ,4:7, 5:8, 6:9, 7:16, 8:17, 9:18, 10:19, 11:20 }
-        self.coco_labels = {1:2, 2:3, 3:4 ,4:6 ,5:7, 6:8, 7:9, 8:16, 9:17, 10:18, 11:19, 12:20 }
+        #self.coco_labels = {1:2, 2:3, 3:4 ,4:6 ,5:7, 6:8, 7:9, 8:16, 9:17, 10:18, 11:19, 12:20 }
         #for c in self.categories:
         #    self.coco_labels[len(self.classes)] = c['id']
         #    self.classes[c['name']] = len(self.classes)
-        self.coco_labels[12]=21  # index 80 would be for background. ideally we shouldn't be needed key 80 if things are right in nms
+        #self.coco_labels[12]=21  # index 80 would be for background. ideally we shouldn't be needed key 80 if things are right in nms
 
     def on_epoch_begin(self, state):
         self.results = []
@@ -102,7 +102,7 @@ class MeanAveragePrecision(Trace):
                     box = box * elem_padimg_targimg_ratio - elem_padding  # equivalent to inversing all the preprocessing operation 
 
                     # append detection for each positively labeled class
-                    label = int(self.coco_labels[label])
+                    label = int(label)
                     elem_image_id = int(elem_image_id)
                     image_result = {
                         'image_id'    : elem_image_id,
