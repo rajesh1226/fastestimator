@@ -54,7 +54,8 @@ class MeanAveragePrecision(Trace):
         self.categories = self.coco.loadCats(self.coco.getCatIds())
         self.categories.sort(key=lambda x: x['id'])
         #self.classes = {}
-        self.coco_labels = {0:2, 1:3, 2:4 ,3:6 ,4:7, 5:8, 6:9, 7:16, 8:17, 9:18, 10:19, 11:20 }
+        #self.coco_labels = {0:2, 1:3, 2:4 ,3:6 ,4:7, 5:8, 6:9, 7:16, 8:17, 9:18, 10:19, 11:20 }
+        self.coco_labels = {1:2, 2:3, 3:4 ,4:6 ,5:7, 6:8, 7:9, 8:16, 9:17, 10:18, 11:19, 12:20 }
         #for c in self.categories:
         #    self.coco_labels[len(self.classes)] = c['id']
         #    self.classes[c['name']] = len(self.classes)
