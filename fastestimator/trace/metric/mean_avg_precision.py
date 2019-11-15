@@ -69,12 +69,13 @@ class MeanAvgPrecision(Trace):
 
         ground_truth_bb = []
         for gt_item in gt:
-            idx_in_batch, x1, y1, w, h, cls = gt_item
+            idx_in_batch, x1, y1, w, h, cls, ig = gt_item
             idx_in_batch, cls = int(idx_in_batch), int(cls)
             id_epoch = self.get_ids_in_epoch(idx_in_batch)
             self.batch_image_ids.append(id_epoch)
             self.image_ids.append(id_epoch)
-            tmp_dict = {'idx': id_epoch, 'x1': x1, 'y1': y1, 'w': w, 'h': h, 'cls': cls}
+            tmp_dict = {'idx': id_epoch, 'x1': x1, 'y1': y1, 'w': w, 'h': h, 'cls': cls, 'ignore': ig}
+
             ground_truth_bb.append(tmp_dict)
 
         predicted_bb = []
@@ -132,12 +133,15 @@ class MeanAvgPrecision(Trace):
             dt_scores_sorted = dt_scores[inds]
             dtm = np.concatenate([e['dtMatches'][:, 0:maxdets] for e in E], axis=1)[:, inds]
 
-            npig = np.sum([e['num_gt'] for e in E])
+            dt_ig = np.concatenate([e['dtIgnore'][:, 0:maxdets] for e in E], axis=1)[:, inds]
+            gt_ig = np.concatenate([e['gtIgnore'] for e in E])
+            npig = np.count_nonzero(gt_ig == 0)
+
             if npig == 0:
                 continue
 
-            tps = dtm > 0
-            fps = dtm == 0
+            tps = np.logical_and(dtm, np.logical_not(dt_ig))
+            fps = np.logical_and(np.logical_not(dtm), np.logical_not(dt_ig))
 
             tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
             fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
@@ -176,6 +180,7 @@ class MeanAvgPrecision(Trace):
             'recall': recall,
             'scores': scores, }
 
+
     def summarize(self, iou=0.5):
         s = self.eval['precision']
         if iou is not None:
@@ -195,14 +200,21 @@ class MeanAvgPrecision(Trace):
         if num_gt == 0 and num_dt == 0:
             return None
 
+        gtind = np.argsort([g['ignore'] for g in gt], kind='mergesort')
+        gt = [gt[i] for i in gtind]
+
         dtind = np.argsort([-d['score'] for d in dt], kind='mergesort')
         dt = [dt[i] for i in dtind[0:self.maxdets]]
 
-        iou_mat = self.ious[img_id, cat_id]
+        iscrowd = [int(o['ignore']) for o in gt]
+        iou_mat = self.ious[img_id, cat_id][:, gtind] if len(self.ious[img_id, cat_id]) > 0 else self.ious[img_id, cat_id]
+
         T = len(self.iou_thres)
 
         dtm = np.zeros((T, num_dt))
         gtm = np.zeros((T, num_gt))
+        gt_ig = np.array([g['ignore'] for g in gt])
+        dt_ig = np.zeros((T, num_dt))
 
         if len(iou_mat) != 0:
             for thres_idx, thres_elem in enumerate(self.iou_thres):
@@ -210,8 +222,11 @@ class MeanAvgPrecision(Trace):
                     m = -1
                     iou = min([thres_elem, 1 - 1e-10])
                     for gt_idx, gt_elem in enumerate(gt):
-                        if gtm[thres_idx, gt_idx] > 0:
+                        if gtm[thres_idx, gt_idx] > 0 and not iscrowd[gt_idx]:
                             continue
+                        if m > -1 and gt_ig[m] == 0 and gt_ig[gt_idx] == 1:
+                            break
+
                         if iou_mat[dt_idx, gt_idx] >= iou:
                             iou = iou_mat[dt_idx, gt_idx]
                             m = gt_idx
@@ -219,6 +234,7 @@ class MeanAvgPrecision(Trace):
                     if m != -1:
                         dtm[thres_idx, dt_idx] = gt[m]['idx']
                         gtm[thres_idx, m] = 1
+                        dt_ig[thres_idx, dt_idx] = gt_ig[m]
 
         return {
             'image_id': img_id,
@@ -227,7 +243,8 @@ class MeanAvgPrecision(Trace):
             'dtMatches': dtm,
             'gtMatches': gtm,
             'dtScores': [d['score'] for d in dt],
-            'num_gt': num_gt,
+            'gtIgnore': gt_ig,
+            'dtIgnore': dt_ig,
         }
 
     def compute_iou(self, dt, gt):
@@ -248,6 +265,6 @@ class MeanAvgPrecision(Trace):
         boxes_a = [[dt_elem['x1'], dt_elem['y1'], dt_elem['w'], dt_elem['h']] for dt_elem in dt]
         boxes_b = [[gt_elem['x1'], gt_elem['y1'], gt_elem['w'], gt_elem['h']] for gt_elem in gt]
 
-        iscrowd = [0 for o in gt]  # to leverage maskUtils.iou
+        iscrowd = [int(o['ignore']) for o in gt]  # to leverage maskUtils.iou
         iou_dt_gt = maskUtils.iou(boxes_a, boxes_b, iscrowd)
         return iou_dt_gt
