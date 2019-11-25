@@ -15,20 +15,20 @@
 from collections import defaultdict
 
 import numpy as np
+from pycocotools import mask as maskUtils
 
 from fastestimator.architecture.retinanet import get_fpn_anchor_box
 from fastestimator.trace import Trace
-from pycocotools import mask as maskUtils
 
 
 class MeanAvgPrecision(Trace):
     """Calculates mean avg precision for various ios. Based out of cocoapi
     """
-    def __init__(self, num_classes, input_shape, pred_key, gt_key, mode="eval",
-                 output_name="map"):
+    def __init__(self, num_classes, input_shape, pred_key, gt_key, mode="eval", output_name="mAP"):
         super().__init__(outputs=output_name, mode=mode)
         self.pred_key = pred_key
         self.gt_key = gt_key
+        self.output_name = output_name
 
         self.iou_thres = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
         self.rec_thres = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
@@ -69,21 +69,21 @@ class MeanAvgPrecision(Trace):
 
         ground_truth_bb = []
         for gt_item in gt:
-            idx_in_batch, x1, y1, w, h, cls = gt_item
+            idx_in_batch, ignore, x1, y1, w, h, cls = gt_item
             idx_in_batch, cls = int(idx_in_batch), int(cls)
             id_epoch = self.get_ids_in_epoch(idx_in_batch)
             self.batch_image_ids.append(id_epoch)
             self.image_ids.append(id_epoch)
-            tmp_dict = {'idx': id_epoch, 'x1': x1, 'y1': y1, 'w': w, 'h': h, 'cls': cls}
+            tmp_dict = {'idx': id_epoch, 'ignore':ignore, 'x1': x1, 'y1': y1, 'w': w, 'h': h, 'cls': cls}
             ground_truth_bb.append(tmp_dict)
 
         predicted_bb = []
         for pred_item in pred:
-            idx_in_batch, x1, y1, w, h, cls, score = pred_item
+            idx_in_batch, ignore, x1, y1, w, h, cls, score = pred_item
             idx_in_batch, cls = int(idx_in_batch), int(cls)
             id_epoch = self.ids_batch_to_epoch[idx_in_batch]
             self.image_ids.append(id_epoch)
-            tmp_dict = {'idx': id_epoch, 'x1': x1, 'y1': y1, 'w': w, 'h': h, 'cls': cls, 'score': score}
+            tmp_dict = {'idx': id_epoch, 'ignore':ignore, 'x1': x1, 'y1': y1, 'w': w, 'h': h, 'cls': cls, 'score': score}
             predicted_bb.append(tmp_dict)
 
         for dict_elem in ground_truth_bb:
@@ -99,7 +99,8 @@ class MeanAvgPrecision(Trace):
 
     def on_epoch_end(self, state):
         self.accumulate()
-        self.summarize()
+        mean_ap = self.summarize()
+        state[self.output_name] = mean_ap
 
     def accumulate(self):
         key_list = self.evalimgs
@@ -111,7 +112,7 @@ class MeanAvgPrecision(Trace):
         T = len(self.iou_thres)
         R = len(self.rec_thres)
         K = len(self.categories)
-        cat_list_zeroidx = [n for n,cat in enumerate(self.categories)]
+        cat_list_zeroidx = [n for n, cat in enumerate(self.categories)]
 
         I = len(self.image_ids)
         maxdets = self.maxdets
@@ -130,13 +131,14 @@ class MeanAvgPrecision(Trace):
             inds = np.argsort(-dt_scores, kind='mergesort')
             dt_scores_sorted = dt_scores[inds]
             dtm = np.concatenate([e['dtMatches'][:, 0:maxdets] for e in E], axis=1)[:, inds]
+            dt_ig = np.concatenate([e['dtIgnore'][:, 0:maxdets] for e in E], axis=1)[:, inds]
+            gt_ig = np.concatenate([e['gtIgnore'] for e in E])
+            npig = np.count_nonzero(gt_ig==0 )
 
-            npig = np.sum([e['num_gt'] for e in E])
             if npig == 0:
                 continue
-
-            tps = dtm > 0
-            fps = dtm == 0
+            tps = np.logical_and(dtm, np.logical_not(dt_ig) )
+            fps = np.logical_and(np.logical_not(dtm), np.logical_not(dt_ig) )
 
             tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
             fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
@@ -184,7 +186,7 @@ class MeanAvgPrecision(Trace):
             mean_s = -1
         else:
             mean_s = np.mean(s[s > -1])
-        print("Mean average precision@0.5 IOU :", "{:.3f}".format(mean_s))
+        return mean_s
 
     def evaluate_img(self, cat_id, img_id):
         dt = self.dt[img_id, cat_id]
@@ -202,6 +204,8 @@ class MeanAvgPrecision(Trace):
 
         dtm = np.zeros((T, num_dt))
         gtm = np.zeros((T, num_gt))
+        gtIg = [g['ignore'] for g in gt]
+        dtIg = np.zeros((T, num_dt))
 
         if len(iou_mat) != 0:
             for thres_idx, thres_elem in enumerate(self.iou_thres):
@@ -218,6 +222,7 @@ class MeanAvgPrecision(Trace):
                     if m != -1:
                         dtm[thres_idx, dt_idx] = gt[m]['idx']
                         gtm[thres_idx, m] = 1
+                        dtIg[thres_idx, dt_idx] = gtIg[m]
 
         return {
             'image_id': img_id,
@@ -226,7 +231,8 @@ class MeanAvgPrecision(Trace):
             'dtMatches': dtm,
             'gtMatches': gtm,
             'dtScores': [d['score'] for d in dt],
-            'num_gt': num_gt,
+            'gtIgnore': gtIg,
+            'dtIgnore': dtIg,
         }
 
     def compute_iou(self, dt, gt):
@@ -247,6 +253,6 @@ class MeanAvgPrecision(Trace):
         boxes_a = [[dt_elem['x1'], dt_elem['y1'], dt_elem['w'], dt_elem['h']] for dt_elem in dt]
         boxes_b = [[gt_elem['x1'], gt_elem['y1'], gt_elem['w'], gt_elem['h']] for gt_elem in gt]
 
-        iscrowd = [0 for o in gt]  # to leverage maskUtils.iou
+        iscrowd = [o['ignore'] for o in gt]  # to leverage maskUtils.iou
         iou_dt_gt = maskUtils.iou(boxes_a, boxes_b, iscrowd)
         return iou_dt_gt
