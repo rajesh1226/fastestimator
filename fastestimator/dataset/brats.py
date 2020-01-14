@@ -22,11 +22,10 @@ from random import shuffle
 
 import nibabel as nib
 import numpy as np
+import pandas as pd
 import SimpleITK as sitk
 from nilearn.image import reorder_img
 from nilearn.image.image import _crop_img_to
-
-import pandas as pd
 
 labels = [1, 2, 4]  # segmentation ground truth has 3 different class
 nlabels = len(labels)  # segmentation ground truth classes are 1 2 4
