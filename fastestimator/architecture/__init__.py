@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 from fastestimator.architecture import cyclegan
+from fastestimator.architecture.drln import DRL_Network
 from fastestimator.architecture.lenet import LeNet
 from fastestimator.architecture.retinanet import RetinaNet
 from fastestimator.architecture.uncertaintyloss import UncertaintyLossNet
