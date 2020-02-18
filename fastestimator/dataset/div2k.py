@@ -33,6 +33,7 @@ def load_data(path=None, lr_scale=8):
     Args:
         path (str, optional): The path to store the DIV2K data. When `path` is not provided, will save at
             `fastestimator_data` under user's home directory.
+        lr_scale(int): The lr_scale indicate the low resolution scale if 2x,4x or 8x
 
     Returns:
         tuple: (csv_path, path) tuple, where
@@ -46,7 +47,7 @@ def load_data(path=None, lr_scale=8):
 
     """
 
-    assert lr_scale==8  or lr_scale==4, 'low resolution should be either 8x or 4x'
+    assert lr_scale == 8 or lr_scale == 4 or lr_scale == 2, 'low resolution should be either 8x,4x or 2x'
     home = str(Path.home())
 
     if path is None:
@@ -59,16 +60,18 @@ def load_data(path=None, lr_scale=8):
     train_image_hr_compressed_path = os.path.join(path, 'DIV2K_train_HR.zip')
     train_image_hr_extract_folder_path = os.path.join(path, 'DIV2K_train_HR')
 
-
     train_image_lr_compressed_path = None
     train_image_lr_extract_folder_path = None
 
     if lr_scale == 8:
         train_image_lr_compressed_path = os.path.join(path, 'DIV2K_train_LR_x8.zip')
-        train_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_train_LR_x8' )
+        train_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_train_LR_x8')
     elif lr_scale == 4:
         train_image_lr_compressed_path = os.path.join(path, 'DIV2K_train_LR_bicubic_X4.zip')
-        train_image_lr_extract_folder_path = os.path.join(path,  'DIV2K_train_LR_bicubic', 'X4')
+        train_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_train_LR_bicubic', 'X4')
+    elif lr_scale == 2:
+        train_image_lr_compressed_path = os.path.join(path, 'DIV2K_train_LR_bicubic_X2.zip')
+        train_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_train_LR_bicubic', 'X2')
 
     val_image_hr_compressed_path = os.path.join(path, 'DIV2K_valid_HR.zip')
     val_image_hr_extract_folder_path = os.path.join(path, 'DIV2K_valid_HR')
@@ -80,9 +83,10 @@ def load_data(path=None, lr_scale=8):
         val_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_valid_LR_x8')
     elif lr_scale == 4:
         val_image_lr_compressed_path = os.path.join(path, 'DIV2K_valid_LR_bicubic_X4.zip')
-        val_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_valid_LR_bicubic','X4')
-
-
+        val_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_valid_LR_bicubic', 'X4')
+    elif lr_scale == 2:
+        val_image_lr_compressed_path = os.path.join(path, 'DIV2K_valid_LR_bicubic_X2.zip')
+        val_image_lr_extract_folder_path = os.path.join(path, 'DIV2K_valid_LR_bicubic', 'X2')
 
     # download training data
     if not os.path.exists(train_image_hr_compressed_path):
@@ -94,7 +98,8 @@ def load_data(path=None, lr_scale=8):
             wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_LR_x8.zip', path, bar=bar_custom)
         elif lr_scale == 4:
             wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_LR_bicubic_X4.zip', path, bar=bar_custom)
-
+        elif lr_scale == 2:
+            wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_LR_bicubic_X2.zip', path, bar=bar_custom)
 
     # extract training data
     if not os.path.exists(train_image_hr_extract_folder_path):
@@ -107,7 +112,7 @@ def load_data(path=None, lr_scale=8):
         with zipfile.ZipFile(train_image_lr_compressed_path, 'r') as zip_file:
             zip_file.extractall(path)
 
-     # download validation data
+    # download validation data
     if not os.path.exists(val_image_hr_compressed_path):
         print("Downloading data to {}".format(path))
         wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_valid_HR.zip', path, bar=bar_custom)
@@ -117,6 +122,8 @@ def load_data(path=None, lr_scale=8):
             wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_valid_LR_x8.zip', path, bar=bar_custom)
         elif lr_scale == 4:
             wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_valid_LR_bicubic_X4.zip', path, bar=bar_custom)
+        elif lr_scale == 2:
+            wget.download('http://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_valid_LR_bicubic_X2.zip', path, bar=bar_custom)
 
     # extract training data
     if not os.path.exists(val_image_hr_extract_folder_path):
@@ -129,22 +136,21 @@ def load_data(path=None, lr_scale=8):
         with zipfile.ZipFile(val_image_lr_compressed_path, 'r') as zip_file:
             zip_file.extractall(path)
 
-
     # glob and generate csv
     if not os.path.exists(train_csv_path):
-        img_hr_list = glob(os.path.join(train_image_hr_extract_folder_path,  '*.png'))
-        img_hr_list= sorted(img_hr_list)
-        img_lr_list = glob(os.path.join(train_image_lr_extract_folder_path,  '*.png'))
-        img_lr_list= sorted(img_lr_list)
-        df = pd.DataFrame(data={'image_hr': img_hr_list,'image_lr': img_lr_list})
+        img_hr_list = glob(os.path.join(train_image_hr_extract_folder_path, '*.png'))
+        img_hr_list = sorted(img_hr_list)
+        img_lr_list = glob(os.path.join(train_image_lr_extract_folder_path, '*.png'))
+        img_lr_list = sorted(img_lr_list)
+        df = pd.DataFrame(data={'image_hr': img_hr_list, 'image_lr': img_lr_list})
         df.to_csv(train_csv_path, index=False)
 
     if not os.path.exists(val_csv_path):
-        img_hr_list = glob(os.path.join(val_image_hr_extract_folder_path,  '*.png'))
-        img_hr_list= sorted(img_hr_list)
-        img_lr_list = glob(os.path.join(val_image_lr_extract_folder_path,  '*.png'))
-        img_lr_list= sorted(img_lr_list)
-        df = pd.DataFrame(data={'image_hr': img_hr_list,'image_lr': img_lr_list})
+        img_hr_list = glob(os.path.join(val_image_hr_extract_folder_path, '*.png'))
+        img_hr_list = sorted(img_hr_list)
+        img_lr_list = glob(os.path.join(val_image_lr_extract_folder_path, '*.png'))
+        img_lr_list = sorted(img_lr_list)
+        df = pd.DataFrame(data={'image_hr': img_hr_list, 'image_lr': img_lr_list})
         df.to_csv(val_csv_path, index=False)
 
-    return train_csv_path, val_csv_path,  path
+    return train_csv_path, val_csv_path, path

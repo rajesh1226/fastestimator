@@ -15,7 +15,6 @@
 """Download flickr2k  dataset """
 import os
 import tarfile
-import zipfile
 from glob import glob
 from pathlib import Path
 
@@ -53,7 +52,6 @@ def load_data(path=None):
     os.makedirs(path, exist_ok=True)
 
     train_csv_path = os.path.join(path, "flickr2k_train.csv")
-    val_csv_path = os.path.join(path, "flickr2k_val.csv")
 
     image_compressed_path = os.path.join(path, 'Flickr2K.tar')
     image_extract_folder_path = os.path.join(path, 'Flickr2K')
@@ -71,11 +69,11 @@ def load_data(path=None):
 
     # glob and generate csv
     if not os.path.exists(train_csv_path):
-        img_hr_list = glob(os.path.join(image_extract_folder_path, 'Flickr2K_HR' ,'*.png'))
-        img_hr_list= sorted(img_hr_list)
+        img_hr_list = glob(os.path.join(image_extract_folder_path, 'Flickr2K_HR', '*.png'))
+        img_hr_list = sorted(img_hr_list)
         img_lr_list = glob(os.path.join(image_extract_folder_path, 'Flickr2K_LR_bicubic', 'X4', '*.png'))
-        img_lr_list= sorted(img_lr_list)
-        df = pd.DataFrame(data={'image_hr': img_hr_list,'image_lr': img_lr_list})
+        img_lr_list = sorted(img_lr_list)
+        df = pd.DataFrame(data={'image_hr': img_hr_list, 'image_lr': img_lr_list})
         df.to_csv(train_csv_path, index=False)
 
-    return train_csv_path,  path
+    return train_csv_path, path
